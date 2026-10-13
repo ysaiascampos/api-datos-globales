@@ -1,0 +1,11 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    environment:
+      - APP_ENV=production
+      - APP_DEBUG=false
+      - MDSF_OPCACHE_DISABLED=0

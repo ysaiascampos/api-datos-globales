@@ -1,0 +1,59 @@
+# ---------- BASE ----------
+FROM registryserver.mds.cl/mds/nginx-php8.3-oci8:1.3 as config
+
+ENV MY_PROJECT_ROOT /var/www/html/site
+WORKDIR $MY_PROJECT_ROOT
+
+# ---------- CONFIG PHP DEV ----------
+RUN echo "memory_limit = 1024M" > /usr/local/etc/php/conf.d/site.ini \
+ && echo "display_errors=On" >> /usr/local/etc/php/conf.d/site.ini \
+ && echo "display_startup_errors=On" >> /usr/local/etc/php/conf.d/site.ini \
+ && echo "error_reporting=E_ALL" >> /usr/local/etc/php/conf.d/site.ini \
+ && mkdir -p /var/log/site \
+ && chown www-data:www-data /var/log/site \
+ && chown www-data:www-data /usr/local/etc/php/conf.d/site.ini
+
+RUN cp /etc/nginx/templates/site.nginx.conf.template /etc/nginx/nginx.conf \
+ && sed -i 's|$MY_PROJECT_ROOT|/var/www/html/site|g' /etc/nginx/nginx.conf \
+ && sed -i 's|$my_project_root|/var/www/html/site|g' /etc/nginx/nginx.conf
+
+# ---------- DEV ----------
+FROM config as dev
+
+RUN pecl install xdebug \
+ && docker-php-ext-enable xdebug
+
+COPY --from=composer:2.9.5 /usr/bin/composer /usr/local/bin/composer
+
+# ✅ copiar TODO el proyecto primero
+COPY . .
+
+# ✅ limpiar dependencias por seguridad
+RUN rm -rf vendor composer.lock
+
+# ✅ instalar dependencias (esto crea /vendor correcto)
+RUN composer update \
+    -W \
+    --no-scripts \
+    --optimize-autoloader \
+    --no-interaction \
+    --prefer-dist \
+
+# ✅ ahora artisan sí funciona
+RUN php artisan package:discover || true \
+ && php artisan optimize:clear || true
+
+# limpieza
+RUN /deletegitmetadata.sh \
+ && rm -rf ci
+
+# permisos
+RUN chown -R www-data:www-data $MY_PROJECT_ROOT
+
+# debug OCI8
+RUN php -m | grep oci || true
+
+ENV MDSF_OPCACHE_DISABLED=1
+
+COPY docker/laravel-init.sh /docker-entrypoint.d/laravel-init.sh
+RUN chmod +x /docker-entrypoint.d/laravel-init.sh

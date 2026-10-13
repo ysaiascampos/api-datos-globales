@@ -1,0 +1,27 @@
+services:
+    tx-system-app:
+        container_name: rsh-tx-system-app
+        build:
+            context: .
+            dockerfile: Dockerfile.dev
+        networks:
+          - rsh-net
+        env_file:
+          - .env
+        environment:
+          - APP_ENV=local
+          - VIRTUAL_HOST=api-rsh-datosglobalestx-system.local.com
+          - VIRTUAL_PORT=80
+          - PHP_IDE_CONFIG=serverName=tx-system
+        volumes:
+          - ./:/var/www/html/site
+          - ./.env:/var/www/html/site/.env
+          - ./docker/xdebug.ini:/usr/local/etc/php/conf.d/xdebug.ini
+          - ./docker/opcache-dev.ini:/usr/local/etc/php/conf.d/zzz-opcache-dev.ini
+        extra_hosts:
+          - "api-rsh-datosglobalesexport-system.local.com:host-gateway"
+          - "api-rsh-datosglobalestx-system.local.com:host-gateway"
+          - "api-rsh-datosglobales-process.local.com:host-gateway"
+networks:
+  rsh-net:
+    external: true

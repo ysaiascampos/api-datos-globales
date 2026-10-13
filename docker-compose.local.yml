@@ -1,0 +1,40 @@
+# =============================================================================
+# Orquestador local: levanta los 3 proyectos + nginx-proxy con un solo comando
+#
+# Requisitos:
+#   - Docker Compose v2.20+ (verificar con: docker compose version)
+#   - Red rsh-net creada (los scripts up-local la crean automaticamente)
+#   - Cada proyecto debe tener su propio .env (manejado de forma privada)
+#
+# Uso directo:
+#   docker compose -f docker-compose.local.yml up -d
+#   docker compose -f docker-compose.local.yml down
+#   docker compose -f docker-compose.local.yml logs -f
+#
+# O usar los scripts: up-local.bat / down-local.bat / logs-local.bat
+# =============================================================================
+
+name: rsh-local
+
+include:
+  - ./api-rsh-datosglobales-process-vn/docker-compose.dev.yml
+  - ./api-rsh-datosglobalesexport-system-vn/docker-compose.dev.yml
+  - ./api-rsh-datosglobalestx-system-vn/docker-compose.dev.yml
+
+services:
+  # Reverse proxy: unico servicio que expone puerto al host (80)
+  # Enruta por VIRTUAL_HOST a cada proyecto
+  nginx-proxy:
+    image: nginxproxy/nginx-proxy
+    container_name: rsh-nginx-proxy
+    ports:
+      - "80:80"
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+    networks:
+      - rsh-net
+    restart: unless-stopped
+
+networks:
+  rsh-net:
+    external: true
